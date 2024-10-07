@@ -7,7 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"docker/api"
+	"github.com/chazari-x/docker-api/api"
 	"github.com/go-chi/chi/v5"
 )
 

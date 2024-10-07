@@ -1,4 +1,4 @@
-module docker
+module github.com/chazari-x/docker-api
 
 go 1.22
 
