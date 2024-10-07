@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  docker-api:
+    container_name: docker-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Монтируем Docker сокет
+    restart: always
