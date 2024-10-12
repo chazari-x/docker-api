@@ -51,6 +51,8 @@ func (a *API) Router() func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Use(a.headersMiddleware)
 
+		r.Get("/", a.GetDocker) // get the docker info
+
 		r.Route("/containers", func(r chi.Router) {
 			r.Get("/", a.ListContainers)        // get the list of containers
 			r.Post("/", a.CreateContainer)      // create a container
