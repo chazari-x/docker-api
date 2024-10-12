@@ -4,31 +4,52 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/go-chi/chi/v5"
+	"github.com/sirupsen/logrus"
 )
 
 // API is the handler for the API
 type API struct {
 	client *docker.Client
+	logger *logrus.Logger
 }
 
 // NewApi creates a new API
-func NewApi(endpoint string) (*API, error) {
+func NewApi(endpoint string, logger *logrus.Logger) (*API, error) {
+	if logger == nil {
+		logger = logrus.New()
+		logger.SetLevel(logrus.TraceLevel)
+		logger.SetReportCaller(true)
+		logger.SetFormatter(&logrus.TextFormatter{
+			TimestampFormat: "2006-01-02 15:04:05",
+			FullTimestamp:   true,
+			PadLevelText:    true,
+			CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
+				return "", fmt.Sprintf(" %s:%d", frame.File, frame.Line)
+			},
+		})
+	}
+
+	if endpoint == "" {
+		endpoint = "unix:///var/run/docker.sock"
+		logger.Info("Docker endpoint is not set, using default value")
+	}
+
 	client, err := docker.NewClient(endpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	return &API{client}, err
+	return &API{client, logger}, err
 }
 
 // Router returns the router for the API
 func (a *API) Router() func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Use(headersMiddleware)
-		r.Use(authMiddleware)
+		r.Use(a.headersMiddleware)
 
 		r.Route("/containers", func(r chi.Router) {
 			r.Get("/", a.ListContainers)        // get the list of containers
@@ -86,30 +107,16 @@ func (a *API) Router() func(r chi.Router) {
 	}
 }
 
-func headersMiddleware(next http.Handler) http.Handler {
+func (a *API) headersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		next.ServeHTTP(w, r.WithContext(r.Context()))
-	})
-}
-
-func authMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("Authorization")
-		if token != "any_token" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		// auth middleware
-
 		next.ServeHTTP(w, r)
 	})
 }
 
 type Response struct {
-	Message string `json:"omitempty"`
-	Error   string `json:"omitempty"`
+	Message string `json:",omitempty"`
+	Error   string `json:",omitempty"`
 }
 
 // write writes the response
@@ -126,7 +133,5 @@ func write(w http.ResponseWriter, statusCode int, data interface{}) {
 		}
 	}
 
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"Error": "%s"}`, http.StatusText(statusCode))))
-	}
+	_ = json.NewEncoder(w).Encode(data)
 }

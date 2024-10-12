@@ -5,17 +5,18 @@ import (
 	"net/http"
 	"runtime"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/chazari-x/docker-api/api"
 	"github.com/go-chi/chi/v5"
 )
 
 func main() {
-	log.SetLevel(log.TraceLevel)
+	log := logrus.New()
 
+	log.SetLevel(logrus.TraceLevel)
 	log.SetReportCaller(true)
-	log.SetFormatter(&log.TextFormatter{
+	log.SetFormatter(&logrus.TextFormatter{
 		TimestampFormat: "2006-01-02 15:04:05",
 		FullTimestamp:   true,
 		PadLevelText:    true,
@@ -26,7 +27,7 @@ func main() {
 
 	r := chi.NewRouter()
 
-	a, err := api.NewApi("unix:///var/run/docker.sock")
+	a, err := api.NewApi("", log)
 	if err != nil {
 		log.Fatal(err)
 	}
